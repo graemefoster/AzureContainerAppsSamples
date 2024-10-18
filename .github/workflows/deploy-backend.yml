@@ -5,6 +5,8 @@ on:
     # Set this to the mainline branch you are using
     branches:
       - main
+    paths:
+      - ./src/AlbumBackEnd/*
 
 # GitHub Actions workflow to deploy to Azure using azd
 # To configure required secrets for connecting to Azure, simply run `azd pipeline config`
@@ -42,4 +44,4 @@ jobs:
           azcliversion: latest
           inlineScript: |
             az extension add --name containerapp --upgrade --allow-preview true
-            az containerapp update --name backend --resource-group $AZURE_ENV_NAME --source ./src/AlbumBackEnd
+            az containerapp up --name backend --location $LOCATION --resource-group $AZURE_ENV_NAME --source ./src/AlbumBackEnd

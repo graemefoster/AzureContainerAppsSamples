@@ -18,7 +18,7 @@ public class AlbumsModel : PageModel
     {
         _logger.LogInformation("Fetching Albums from Spring Microservice");
         var client = _httpClientFactory.CreateClient();
-        var albums = await client.GetStringAsync("http://grf-spring-api/albums");
+        var albums = await client.GetStringAsync("http://backend/albums");
         Albums = JsonSerializer.Deserialize<Album[]>(albums);
     }
 

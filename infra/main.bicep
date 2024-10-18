@@ -20,6 +20,11 @@ param location string
 // }
 param resourceGroupName string = ''
 
+@minLength(3)
+param githubOrganisation string
+@minLength(3)
+param githubRepository string
+
 var abbrs = loadJsonContent('./abbreviations.json')
 
 // tags that should be applied to all resources.
@@ -57,6 +62,9 @@ module aca 'platform/main.bicep' = {
   params: {
     resourceToken: resourceToken
     location: location
+    githubEnvironment: environmentName
+    githubOrganisation: githubOrganisation
+    githubRepository: githubRepository
   }
 }
 
@@ -70,3 +78,5 @@ module aca 'platform/main.bicep' = {
 // To see these outputs, run `azd env get-values`,  or `azd env get-values --output json` for json output.
 output AZURE_LOCATION string = location
 output AZURE_TENANT_ID string = tenant().tenantId
+output AZURE_DEPLOYMENT_PRINCIPAL_CLIENT_ID string = aca.outputs.deploymentIdentityClientId
+

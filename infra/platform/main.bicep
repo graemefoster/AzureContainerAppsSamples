@@ -1,5 +1,36 @@
 param resourceToken string
 param location string = resourceGroup().location
+param githubOrganisation string
+param githubRepository string
+param githubEnvironment string
+
+resource deploymentIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-07-31-preview' = {
+  name: '${resourceToken}-deployer'
+  location: location
+  resource githubFederation 'federatedIdentityCredentials' = {
+    name: 'github'
+    properties: {
+      issuer: 'https://token.actions.githubusercontent.com'
+      subject: 'repo:${githubOrganisation}/${githubRepository}:environment:${githubEnvironment}'
+      audiences: ['api://AzureADTokenExchange']
+    }
+  }
+}
+
+resource contributorRoleAssignment 'Microsoft.Authorization/roleDefinitions@2022-05-01-preview' existing = {
+  scope: subscription()
+  name: 'b24988ac-6180-42a0-ab88-20f7382dd24c'
+}
+
+resource deploymentContributorOnRg 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(deploymentIdentity.id, resourceGroup().name, contributorRoleAssignment.id)
+  scope: resourceGroup()
+  properties: {
+    principalId: deploymentIdentity.properties.principalId
+    roleDefinitionId: contributorRoleAssignment.id
+    principalType: 'ServicePrincipal'
+  }
+}
 
 resource cappenv 'Microsoft.App/managedEnvironments@2024-03-01' = {
   name: '${resourceToken}-cappenv'
@@ -122,3 +153,6 @@ resource backEnd 'Microsoft.App/containerApps@2024-02-02-preview' = {
     environmentId: cappenv.id
   }
 }
+
+output deploymentIdentityClientId string = deploymentIdentity.properties.clientId
+

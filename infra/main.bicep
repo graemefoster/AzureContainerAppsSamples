@@ -51,8 +51,14 @@ resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
 // Add resources to be provisioned below.
 // A full example that leverages azd bicep modules can be seen in the todo-python-mongo template:
 // https://github.com/Azure-Samples/todo-python-mongo/tree/main/infra
-
-
+module aca 'platform/main.bicep' = {
+  name: '${deployment().name}-aca'
+  scope: rg
+  params: {
+    resourceToken: resourceToken
+    location: location
+  }
+}
 
 // Add outputs from the deployment here, if needed.
 //

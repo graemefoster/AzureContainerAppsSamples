@@ -1,0 +1,29 @@
+﻿@page
+@model AlbumsModel
+@{
+    ViewData["Title"] = "Albums";
+}
+
+<div class="text-center">
+    <h1 class="display-4">Welcome to the new one...</h1>
+    <table>
+        <thead>
+        <tr>
+            <th>Title</th>
+            <th>Artist</th>
+            <th>Release Date</th>
+        </tr>
+        </thead>
+        <tbody>
+        @foreach (var album in Model.Albums!)
+        {
+            <tr>
+                <td>@album.Title</td>
+                <td>@album.Artist</td>
+                <td>@album.Price</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>
+

@@ -1,3 +1,5 @@
+name: Deploy Backend API
+
 on:
   workflow_dispatch:
   push:
@@ -18,7 +20,8 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  deploy:
+    environment: aca-spring-aspire-dev
     runs-on: ubuntu-latest
     env:
       AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}

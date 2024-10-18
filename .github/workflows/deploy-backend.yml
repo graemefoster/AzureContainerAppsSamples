@@ -45,4 +45,4 @@ jobs:
           azcliversion: latest
           inlineScript: |
             az extension add --name containerapp --upgrade --allow-preview true
-            az containerapp up --name backend --location $AZURE_LOCATION --resource-group $AZURE_ENV_NAME --source ./src/AlbumBackEnd
+            az containerapp up --debug --name backend --location $AZURE_LOCATION --resource-group $AZURE_ENV_NAME --source ./src/AlbumBackEnd

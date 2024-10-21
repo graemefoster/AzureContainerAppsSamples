@@ -47,4 +47,4 @@ jobs:
             az account show
             az group show --resource-group $AZURE_ENV_NAME
             az extension add --name containerapp --upgrade --allow-preview true
-            az containerapp up --name frontend --location $AZURE_LOCATION --resource-group $AZURE_ENV_NAME --source ./src/AlbumFrontEnd
+            az containerapp up --name frontend --location $AZURE_LOCATION --resource-group $AZURE_ENV_NAME --ingress external --source ./src/AlbumFrontEnd

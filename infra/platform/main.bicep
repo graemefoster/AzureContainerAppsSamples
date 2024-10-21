@@ -32,6 +32,15 @@ resource deploymentContributorOnRg 'Microsoft.Authorization/roleAssignments@2022
   }
 }
 
+resource cappenvacr 'Microsoft.ContainerRegistry/registries@2023-11-01-preview' = {
+  name: '${resourceToken}cappacr'
+  location: location
+  sku: { name: 'Standard' }
+  properties: {
+    adminUserEnabled: true
+  }
+}
+
 resource cappenv 'Microsoft.App/managedEnvironments@2024-03-01' = {
   name: '${resourceToken}-cappenv'
   location: location
@@ -53,7 +62,7 @@ resource cappenv 'Microsoft.App/managedEnvironments@2024-03-01' = {
   }
 
   resource aspireDashboard 'dotNetComponents@2024-02-02-preview' = {
-    name: '${cappenv.name}-asp-dash'
+    name: 'aspire-dashboard' //Same name used as the portal when you create it there.
     properties: {
       componentType: 'AspireDashboard'
     }
@@ -63,6 +72,9 @@ resource cappenv 'Microsoft.App/managedEnvironments@2024-03-01' = {
 resource frontEnd 'Microsoft.App/containerApps@2024-02-02-preview' = {
   name: 'frontend'
   location: location
+  identity: {
+    type: 'SystemAssigned'
+  }
   properties: {
     configuration: {
       activeRevisionsMode: 'Multiple'
@@ -71,11 +83,24 @@ resource frontEnd 'Microsoft.App/containerApps@2024-02-02-preview' = {
         transport: 'auto'
         external: true
       }
+      secrets: [
+        {
+          name: 'acr-secret'
+          value: cappenvacr.listCredentials().passwords[0].value
+        }
+      ]
       runtime: {
         dotnet: {
           autoConfigureDataProtection: true
         }
       }
+      registries: [
+        {
+          server: cappenvacr.properties.loginServer
+          username: cappenvacr.listCredentials().username
+          passwordSecretRef: 'acr-secret'
+        }
+      ]
     }
     environmentId: cappenv.id
     template: {
@@ -110,6 +135,9 @@ resource frontEnd 'Microsoft.App/containerApps@2024-02-02-preview' = {
 resource backEnd 'Microsoft.App/containerApps@2024-02-02-preview' = {
   name: 'backend'
   location: location
+  identity: {
+    type: 'SystemAssigned'
+  }
   properties: {
     configuration: {
       activeRevisionsMode: 'Multiple'
@@ -118,11 +146,24 @@ resource backEnd 'Microsoft.App/containerApps@2024-02-02-preview' = {
         transport: 'auto'
         external: false
       }
+      secrets: [
+        {
+          name: 'acr-secret'
+          value: cappenvacr.listCredentials().passwords[0].value
+        }
+      ]
       runtime: {
         java: {
           enableMetrics: true
         }
       }
+      registries: [
+        {
+          server: cappenvacr.properties.loginServer
+          username: cappenvacr.listCredentials().username
+          passwordSecretRef: 'acr-secret'
+        }
+      ]
     }
     template: {
       containers: [
@@ -155,4 +196,3 @@ resource backEnd 'Microsoft.App/containerApps@2024-02-02-preview' = {
 }
 
 output deploymentIdentityClientId string = deploymentIdentity.properties.clientId
-

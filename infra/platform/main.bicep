@@ -41,13 +41,36 @@ resource cappenvacr 'Microsoft.ContainerRegistry/registries@2023-11-01-preview' 
   }
 }
 
-resource cappenv 'Microsoft.App/managedEnvironments@2024-03-01' = {
+resource cappenv 'Microsoft.App/managedEnvironments@2024-02-02-preview' = {
   name: '${resourceToken}-cappenv'
   location: location
   properties: {
-    appLogsConfiguration: {
-      destination: 'azure-monitor'
-    }
+    // openTelemetryConfiguration: {
+    //   destinationsConfiguration: {
+    //     otlpConfigurations: [
+    //       {
+    //         endpoint: 'https://otlp.nr-data.net:4317'
+    //         insecure: false
+    //         name: 'GraemesNewRelicOLTPEndpoint'
+    //         headers: [
+    //           {
+    //             key: 'api-key'
+    //             value: '<license-here>'
+    //           }
+    //         ]
+    //       }
+    //     ]
+    //   }
+    //   logsConfiguration: {
+    //     destinations: ['GraemesNewRelicOLTPEndpoint']
+    //   }
+    //   metricsConfiguration: {
+    //     destinations: ['GraemesNewRelicOLTPEndpoint']
+    //   }
+    //   tracesConfiguration: {
+    //     destinations: ['GraemesNewRelicOLTPEndpoint']
+    //   }
+    // }
     peerAuthentication: {
       mtls: {
         enabled: true
@@ -69,130 +92,130 @@ resource cappenv 'Microsoft.App/managedEnvironments@2024-03-01' = {
   }
 }
 
-resource frontEnd 'Microsoft.App/containerApps@2024-02-02-preview' = {
-  name: 'frontend'
-  location: location
-  identity: {
-    type: 'SystemAssigned'
-  }
-  properties: {
-    configuration: {
-      activeRevisionsMode: 'Multiple'
-      ingress: {
-        allowInsecure: false
-        transport: 'auto'
-        external: true
-      }
-      secrets: [
-        {
-          name: 'acr-secret'
-          value: cappenvacr.listCredentials().passwords[0].value
-        }
-      ]
-      runtime: {
-        dotnet: {
-          autoConfigureDataProtection: true
-        }
-      }
-      registries: [
-        {
-          server: cappenvacr.properties.loginServer
-          username: cappenvacr.listCredentials().username
-          passwordSecretRef: 'acr-secret'
-        }
-      ]
-    }
-    environmentId: cappenv.id
-    template: {
-      containers: [
-        {
-          name: 'bootstrap-container-pre-artifact-upload'
-          image: 'mcr.microsoft.com/k8se/quickstart:latest'
-          resources: {
-            cpu: any('0.5')
-            memory: '1Gi'
-          }
-        }
-      ]
-      scale: {
-        minReplicas: 0
-        maxReplicas: 1
-        rules: [
-          {
-            name: 'http-scaler'
-            http: {
-              metadata: {
-                concurrentRequests: '10'
-              }
-            }
-          }
-        ]
-      }
-    }
-  }
-}
+// resource frontEnd 'Microsoft.App/containerApps@2024-02-02-preview' = {
+//   name: 'frontend'
+//   location: location
+//   identity: {
+//     type: 'SystemAssigned'
+//   }
+//   properties: {
+//     configuration: {
+//       activeRevisionsMode: 'Multiple'
+//       ingress: {
+//         allowInsecure: false
+//         transport: 'auto'
+//         external: true
+//       }
+//       secrets: [
+//         {
+//           name: 'acr-secret'
+//           value: cappenvacr.listCredentials().passwords[0].value
+//         }
+//       ]
+//       runtime: {
+//         dotnet: {
+//           autoConfigureDataProtection: true
+//         }
+//       }
+//       registries: [
+//         {
+//           server: cappenvacr.properties.loginServer
+//           username: cappenvacr.listCredentials().username
+//           passwordSecretRef: 'acr-secret'
+//         }
+//       ]
+//     }
+//     environmentId: cappenv.id
+//     template: {
+//       containers: [
+//         {
+//           name: 'bootstrap-container-pre-artifact-upload'
+//           image: 'mcr.microsoft.com/k8se/quickstart:latest'
+//           resources: {
+//             cpu: any('0.5')
+//             memory: '1Gi'
+//           }
+//         }
+//       ]
+//       scale: {
+//         minReplicas: 0
+//         maxReplicas: 1
+//         rules: [
+//           {
+//             name: 'http-scaler'
+//             http: {
+//               metadata: {
+//                 concurrentRequests: '10'
+//               }
+//             }
+//           }
+//         ]
+//       }
+//     }
+//   }
+// }
 
-resource backEnd 'Microsoft.App/containerApps@2024-02-02-preview' = {
-  name: 'backend'
-  location: location
-  identity: {
-    type: 'SystemAssigned'
-  }
-  properties: {
-    configuration: {
-      activeRevisionsMode: 'Multiple'
-      ingress: {
-        allowInsecure: false
-        transport: 'auto'
-        external: false
-      }
-      secrets: [
-        {
-          name: 'acr-secret'
-          value: cappenvacr.listCredentials().passwords[0].value
-        }
-      ]
-      runtime: {
-        java: {
-          enableMetrics: true
-        }
-      }
-      registries: [
-        {
-          server: cappenvacr.properties.loginServer
-          username: cappenvacr.listCredentials().username
-          passwordSecretRef: 'acr-secret'
-        }
-      ]
-    }
-    template: {
-      containers: [
-        {
-          name: 'bootstrap-container-pre-artifact-upload'
-          image: 'mcr.microsoft.com/k8se/quickstart:latest'
-          resources: {
-            cpu: any('0.5')
-            memory: '1Gi'
-          }
-        }
-      ]
-      scale: {
-        minReplicas: 0
-        maxReplicas: 1
-        rules: [
-          {
-            name: 'http-scaler'
-            http: {
-              metadata: {
-                concurrentRequests: '10'
-              }
-            }
-          }
-        ]
-      }
-    }
-    environmentId: cappenv.id
-  }
-}
+// resource backEnd 'Microsoft.App/containerApps@2024-02-02-preview' = {
+//   name: 'backend'
+//   location: location
+//   identity: {
+//     type: 'SystemAssigned'
+//   }
+//   properties: {
+//     configuration: {
+//       activeRevisionsMode: 'Multiple'
+//       ingress: {
+//         allowInsecure: false
+//         transport: 'auto'
+//         external: false
+//       }
+//       secrets: [
+//         {
+//           name: 'acr-secret'
+//           value: cappenvacr.listCredentials().passwords[0].value
+//         }
+//       ]
+//       runtime: {
+//         java: {
+//           enableMetrics: true
+//         }
+//       }
+//       registries: [
+//         {
+//           server: cappenvacr.properties.loginServer
+//           username: cappenvacr.listCredentials().username
+//           passwordSecretRef: 'acr-secret'
+//         }
+//       ]
+//     }
+//     template: {
+//       containers: [
+//         {
+//           name: 'bootstrap-container-pre-artifact-upload'
+//           image: 'mcr.microsoft.com/k8se/quickstart:latest'
+//           resources: {
+//             cpu: any('0.5')
+//             memory: '1Gi'
+//           }
+//         }
+//       ]
+//       scale: {
+//         minReplicas: 0
+//         maxReplicas: 1
+//         rules: [
+//           {
+//             name: 'http-scaler'
+//             http: {
+//               metadata: {
+//                 concurrentRequests: '10'
+//               }
+//             }
+//           }
+//         ]
+//       }
+//     }
+//     environmentId: cappenv.id
+//   }
+// }
 
 output deploymentIdentityClientId string = deploymentIdentity.properties.clientId

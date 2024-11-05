@@ -43,8 +43,6 @@ var resourceToken = toLower(uniqueString(subscription().id, environmentName, loc
 //   Microsoft.Web/sites for appservice, function
 // Example usage:
 //   tags: union(tags, { 'azd-service-name': apiServiceName })
-#disable-next-line no-unused-vars
-var apiServiceName = 'python-api'
 
 // Organize resources in a resource group
 resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
@@ -56,7 +54,45 @@ resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
 // Add resources to be provisioned below.
 // A full example that leverages azd bicep modules can be seen in the todo-python-mongo template:
 // https://github.com/Azure-Samples/todo-python-mongo/tree/main/infra
-module aca 'platform/main.bicep' = {
+module foundation 'platform/foundation.bicep' = {
+  name: '${deployment().name}-foundation'
+  scope: rg
+  params: {
+    location: location
+    logAnalyticsName: '${resourceToken}-loganalytics'
+  }
+}
+
+module network 'platform/vnet.bicep' = {
+  name: '${deployment().name}-network'
+  scope: rg
+  params: {
+    vnetName: '${resourceToken}-vnet'
+    routeTableName: routeTableName
+    location: location
+    vnetCidr: '10.0.0.0/16'
+  }
+}
+
+var routeTableName = '${abbrs.networkRouteTables}internetviafwall'
+
+module fwall 'platform/firewall.bicep' = {
+  name: '${deployment().name}-firewall'
+  scope: rg
+  params: {
+    firewallPipName: '${resourceToken}-fwall-pip'
+    firewallMgmtPipName: '${resourceToken}-fwall-mgmt-pip'
+    firewallName: '${resourceToken}-fwall'
+    firewallPolicyName: '${resourceToken}-fwall-policy'
+    firewallRouteTableName: routeTableName
+    location: location
+    firewallSubnetId: network.outputs.firewallSubnetId
+    firewallManagementSubnetId: network.outputs.firewallManagementSubnetId
+    logAnalyticsId: foundation.outputs.logAnalyticsId
+  }
+}
+
+module aca 'platform/aca.bicep' = {
   name: '${deployment().name}-aca'
   scope: rg
   params: {
@@ -65,6 +101,8 @@ module aca 'platform/main.bicep' = {
     githubEnvironment: environmentName
     githubOrganisation: githubOrganisation
     githubRepository: githubRepository
+    acaSubnetId: network.outputs.acaSubnetId
+    logAnalyticsId: foundation.outputs.logAnalyticsId
   }
 }
 

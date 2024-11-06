@@ -3,6 +3,8 @@ param location string = resourceGroup().location
 param githubOrganisation string
 param githubRepository string
 param acaSubnetId string
+param privateEndpointSubnetId string
+param acrPrivateDnsZoneId string
 param githubEnvironment string
 param logAnalyticsId string
 
@@ -37,9 +39,44 @@ resource deploymentContributorOnRg 'Microsoft.Authorization/roleAssignments@2022
 resource cappenvacr 'Microsoft.ContainerRegistry/registries@2023-11-01-preview' = {
   name: '${resourceToken}cappacr'
   location: location
-  sku: { name: 'Standard' }
+  sku: { name: 'Premium' }
   properties: {
     adminUserEnabled: true
+    publicNetworkAccess: 'Enabled'
+    dataEndpointEnabled: true
+  }
+}
+
+resource cappacrprivateendpoint 'Microsoft.Network/privateEndpoints@2024-01-01' = {
+  name: '${resourceToken}-cappenv-pe'
+  location: location
+  properties: {
+    subnet: {
+      id: privateEndpointSubnetId
+    }
+    privateLinkServiceConnections: [
+      {
+        name: 'cappacrprivateendpoint'
+        properties: {
+          privateLinkServiceId: cappenvacr.id
+          groupIds: ['registry']
+        }
+      }
+    ]
+  }
+
+  resource dns 'privateDnsZoneGroups' = {
+    name: 'cappacrprivateendpoint'
+    properties: {
+      privateDnsZoneConfigs: [
+        {
+          name: 'cappacrprivateendpoint'
+          properties: {
+            privateDnsZoneId: acrPrivateDnsZoneId
+          }
+        }
+      ]
+    }
   }
 }
 
@@ -56,7 +93,6 @@ resource cappenvacrdiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01
     ]
   }
 }
-
 
 resource cappenv 'Microsoft.App/managedEnvironments@2024-02-02-preview' = {
   name: '${resourceToken}-cappenv'
@@ -113,30 +149,7 @@ resource cappenv 'Microsoft.App/managedEnvironments@2024-02-02-preview' = {
     ]
     publicNetworkAccess: 'Disabled'
   }
-
-  resource aspireDashboard 'dotNetComponents@2024-02-02-preview' = {
-    name: 'aspire-dashboard' //Same name used as the portal when you create it there.
-    properties: {
-      componentType: 'AspireDashboard'
-    }
-  }
 }
-
-
-resource cappenvdiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
-  scope: cappenv
-  name: 'diagnostics'
-  properties: {
-    workspaceId: logAnalyticsId
-    logs: [
-      {
-        categoryGroup: 'allLogs'
-        enabled: true
-      }
-    ]
-  }
-}
-
 
 resource frontEnd 'Microsoft.App/containerApps@2024-02-02-preview' = {
   name: 'frontend'
@@ -185,7 +198,7 @@ resource frontEnd 'Microsoft.App/containerApps@2024-02-02-preview' = {
         }
       ]
       scale: {
-        minReplicas: 0
+        minReplicas: 1
         maxReplicas: 1
         rules: [
           {
@@ -199,20 +212,6 @@ resource frontEnd 'Microsoft.App/containerApps@2024-02-02-preview' = {
         ]
       }
     }
-  }
-}
-
-resource cappfrontendacrdiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
-  scope: frontEnd
-  name: 'diagnostics'
-  properties: {
-    workspaceId: logAnalyticsId
-    logs: [
-      {
-        categoryGroup: 'allLogs'
-        enabled: true
-      }
-    ]
   }
 }
 
@@ -261,7 +260,7 @@ resource backEnd 'Microsoft.App/containerApps@2024-02-02-preview' = {
         }
       ]
       scale: {
-        minReplicas: 0
+        minReplicas: 1
         maxReplicas: 1
         rules: [
           {
@@ -279,18 +278,36 @@ resource backEnd 'Microsoft.App/containerApps@2024-02-02-preview' = {
   }
 }
 
-resource cappbackendacrdiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
-  scope: backEnd
-  name: 'diagnostics'
+resource aspireDashboard 'Microsoft.App/managedEnvironments/dotNetComponents@2024-02-02-preview' = {
+  parent: cappenv
+  name: 'aspire-dashboard' //Same name used as the portal when you create it there.
   properties: {
-    workspaceId: logAnalyticsId
-    logs: [
-      {
-        categoryGroup: 'allLogs'
-        enabled: true
-      }
-    ]
+    componentType: 'AspireDashboard'
   }
+  //fails sometimes with 'cannot modify DotNetComponent ... because another modification is in progress'
+  //try explicitly waiting...
+  dependsOn: [
+    frontEnd
+    backEnd
+  ]
 }
 
+
+// resource acaEnvBuilder 'Microsoft.App/builders@2024-02-02-preview' = {
+//   name: '${resourceToken}-cappenv-builder'
+//   location: location
+//   identity: {
+//     type: 'UserAssigned'
+//     userAssignedIdentities: {
+//       '${deploymentIdentity.id}': {}
+//     }
+//   }
+//   properties: {
+//     environmentId: cappenv.id
+//   }
+// }
+
 output deploymentIdentityClientId string = deploymentIdentity.properties.clientId
+// output builderAcr string = acaEnvBuilder.properties.containerRegistries[0].containerRegistryServer
+output acaEnvDefaultHostName string = cappenv.properties.defaultDomain
+output acaEnvName string = cappenv.name

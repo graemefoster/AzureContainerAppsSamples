@@ -25,6 +25,13 @@ param githubOrganisation string
 @minLength(3)
 param githubRepository string
 
+@minLength(4)
+param vmUsername string
+
+@minLength(8)
+@secure()
+param vmPassword string
+
 var abbrs = loadJsonContent('./abbreviations.json')
 
 // tags that should be applied to all resources.
@@ -68,7 +75,6 @@ module network 'platform/vnet.bicep' = {
   scope: rg
   params: {
     vnetName: '${resourceToken}-vnet'
-    routeTableName: routeTableName
     location: location
     vnetCidr: '10.0.0.0/16'
   }
@@ -89,6 +95,7 @@ module fwall 'platform/firewall.bicep' = {
     firewallSubnetId: network.outputs.firewallSubnetId
     firewallManagementSubnetId: network.outputs.firewallManagementSubnetId
     logAnalyticsId: foundation.outputs.logAnalyticsId
+    vnetName: network.outputs.vnetName
   }
 }
 
@@ -101,10 +108,41 @@ module aca 'platform/aca.bicep' = {
     githubEnvironment: environmentName
     githubOrganisation: githubOrganisation
     githubRepository: githubRepository
-    acaSubnetId: network.outputs.acaSubnetId
+    acaSubnetId: fwall.outputs.acaSubnetId
     logAnalyticsId: foundation.outputs.logAnalyticsId
+    privateEndpointSubnetId: network.outputs.privateEndpointSubnetId
+    acrPrivateDnsZoneId: network.outputs.acrPrivateDnsZoneId
   }
 }
+
+module acaDns 'platform/aca-dns.bicep' = {
+  name: '${deployment().name}-aca-dns'
+  scope: rg
+  params: {
+    vnetName: network.outputs.vnetName
+    acaEnvName: aca.outputs.acaEnvName
+    acaEnvDefaultHostName: aca.outputs.acaEnvDefaultHostName
+  }
+}
+
+//deploy a vm so we can peek inside and see what's going on
+module developerVm './Platform/developerVm.bicep' = {
+  name: '${deployment().name}-developerVm'
+  scope: rg
+  params: {
+    location: location
+    bastionName: '${replace(resourceToken, '-', '')}bastion'
+    vmName: 'developervm'
+    vmSize: 'Standard_D2s_v4'
+    vmImage: '2022-datacenter-azure-edition'
+    vnetId: network.outputs.vnetId
+    vnetSubnetId: network.outputs.vmSubnetId
+    bastionSubnetId: network.outputs.bastionSubnetId
+    vmUser: vmUsername
+    vmPassword: vmPassword
+  }
+}
+
 
 // Add outputs from the deployment here, if needed.
 //
@@ -117,4 +155,3 @@ module aca 'platform/aca.bicep' = {
 output AZURE_LOCATION string = location
 output AZURE_TENANT_ID string = tenant().tenantId
 output AZURE_DEPLOYMENT_PRINCIPAL_CLIENT_ID string = aca.outputs.deploymentIdentityClientId
-
